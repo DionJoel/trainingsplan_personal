@@ -1,0 +1,26 @@
+{
+  "name": "trainingsplan_personal",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Intervals.icu Trainingscoach Web-App",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm --prefix client run dev\"",
+    "server": "nodemon server.js",
+    "client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "preview": "npm --prefix client run preview"
+  },
+  "dependencies": {
+    "axios": "^1.5.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.4"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
