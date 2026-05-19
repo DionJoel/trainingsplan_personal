@@ -12,8 +12,8 @@ Lokale Web-App die Intervals.icu-Daten mit Claude kombiniert, um kontextbewusste
 |---|---|---|
 |Frontend|React + Vite|Schnell, kein Overhead|
 |Styling|Tailwind CSS|Utility-first, kein Framework-Bloat|
-|Backend|Express (Node.js)|API-Keys sicher, Proxy zu Intervals + Anthropic|
-|KI|Anthropic API (claude-sonnet-4)|Trainingsplanung mit Kontext|
+|Backend|MCP Server (Python) + optional Express|KI-Werkzeuge und Intervals-API als Tool-Schnittstelle|
+|KI|Anthropic API (claude-sonnet-4) oder Claude Desktop|Trainingsplanung mit Kontext|
 |Daten|Intervals.icu REST API|Single Source of Truth|
 
 ---
@@ -22,22 +22,37 @@ Lokale Web-App die Intervals.icu-Daten mit Claude kombiniert, um kontextbewusste
 
 ```
 /trainingscoach
-├── .env                          # INTERVALS_KEY, ANTHROPIC_KEY, ATHLETE_ID
-├── server.js                     # Express Backend
+├── .env                          # API_KEY, INTERVALS_KEY, ANTHROPIC_KEY, ATHLETE_ID
+├── pyproject.toml                # Python MCP-Server Projekt
+├── server.js                     # Express Backend (optional)
 ├── CLAUDE.md                     # KI-Systemkontext
 ├── package.json
-└── /client
-    ├── index.html
-    ├── vite.config.js
-    └── /src
-        ├── App.jsx
-        ├── /components
-        │   ├── Chat.jsx          # Haupt-Chat-Interface
-        │   ├── PlanPreview.jsx   # Trainingsplan Vorschau + Bestätigung
-        │   └── ObsidianExport.jsx # MD Download
-        └── /api
-            ├── intervals.js      # Intervals.icu API Wrapper
-            └── claude.js         # Anthropic API Wrapper
+├── /client
+│   ├── index.html
+│   ├── vite.config.js
+│   └── /src
+│       ├── App.jsx
+│       ├── /components
+│       │   ├── Chat.jsx          # Haupt-Chat-Interface
+│       │   ├── PlanPreview.jsx   # Trainingsplan Vorschau + Bestätigung
+│       │   └── ObsidianExport.jsx # MD Download
+│       └── /api
+│           ├── intervals.js      # Intervals.icu API Wrapper
+│           └── claude.js         # Anthropic API Wrapper
+└── /src
+    └── /intervals_mcp_server
+        ├── __init__.py
+        ├── config.py
+        ├── mcp_instance.py
+        ├── api
+        │   └── client.py
+        ├── server.py
+        ├── /tools
+        │   ├── activities.py
+        │   ├── events.py
+        │   └── wellness.py
+        └── /utils
+            └── validation.py
 ```
 
 ---
@@ -165,17 +180,25 @@ Direkt in Obsidian Vault Ordner `/Training/Pläne/` ablegen.
 ## Setup (lokal)
 
 ```bash
-# 1. Abhängigkeiten
+# 1. Node-Abhängigkeiten installieren
 npm install
+npm --prefix client install
 
-# 2. .env anlegen
-INTERVALS_KEY=dein_key
-ANTHROPIC_KEY=dein_key
+# 2. Python-Abhängigkeiten installieren
+python3 -m pip install -e .
+
+# 3. .env anlegen
+cp .env.example .env
+
+# 4. Werte setzen
+API_KEY=dein_intervals_key
+INTERVALS_KEY=dein_intervals_key
+ANTHROPIC_KEY=dein_anthropic_key
 ATHLETE_ID=i484198
 
-# 3. Starten
+# 5. Starten
 npm run dev        # Frontend (Vite, Port 5173)
-node server.js     # Backend (Express, Port 3001)
+python3 -m intervals_mcp_server.server  # MCP Server
 ```
 
 ---

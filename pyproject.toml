@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trainingsplan_personal_mcp"
+version = "0.1.0"
+description = "Minimaler MCP-Server für Intervals.icu basierend auf dem mvilanova-Beispiel"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "DionJoel", email = "noreply@example.com" }]
+dependencies = ["mcp[cli]>=1.4.0", "httpx>=0.25.0", "python-dotenv>=1.0.0"]
+classifiers = [
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.5", "ruff>=0.1.0"]
+
+[tool.hatch.build]
+include = ["intervals_mcp_server/**", "README.md", ".env.example"]
+
+[tool.ruff]
+exclude = [".venv", "__pycache__", "build", "dist", "node_modules"]
+line-length = 100

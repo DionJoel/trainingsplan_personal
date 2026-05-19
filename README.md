@@ -9,6 +9,11 @@ Lokale Web-App für einen Intervals.icu-Trainingscoach mit Claude.
 3. `.env` aus `.env.example` anlegen und Werte setzen
 4. `npm run dev`
 
+### MCP Server (optional)
+
+- `python3 -m pip install -e .`
+- `python3 -m intervals_mcp_server.server`
+
 ## Struktur
 
 - `server.js` — Express-Backend mit Intervals.icu-/Anthropic-Proxy

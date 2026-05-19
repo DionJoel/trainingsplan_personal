@@ -45,6 +45,84 @@ const anthropicClient = axios.create({
   }
 });
 
+function isoDateWeeksAgo(weeks) {
+  const date = new Date();
+  date.setDate(date.getDate() - weeks * 7);
+  return date.toISOString().slice(0, 10);
+}
+
+function isoDateMonthsAgo(months) {
+  const date = new Date();
+  date.setMonth(date.getMonth() - months);
+  return date.toISOString().slice(0, 10);
+}
+
+function summarizeActivities(activities) {
+  if (!Array.isArray(activities) || activities.length === 0) {
+    return 'Keine Aktivitäten in den letzten Monaten verfügbar.';
+  }
+
+  const activitiesByType = activities.reduce((acc, activity) => {
+    const type = activity.type || activity.sport || 'Andere';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const totals = activities.reduce(
+    (acc, activity) => {
+      const load = Number(activity.load || activity.tss || 0);
+      acc.load += load;
+      return acc;
+    },
+    { load: 0 }
+  );
+
+  return `Aktivitäten: ${activities.length} Einträge, geschätzte Gesamtbelastung: ${Math.round(totals.load)}. Verteilung: ${Object.entries(activitiesByType)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(', ')}.`;
+}
+
+function summarizeWellness(wellness) {
+  if (!Array.isArray(wellness) || wellness.length === 0) {
+    return 'Keine Wellness-Daten verfügbar.';
+  }
+
+  const points = wellness.slice(-14);
+  const avgHrv = points.reduce((acc, entry) => acc + Number(entry.hrv ?? 0), 0) / points.length;
+  const avgSleep = points.reduce((acc, entry) => acc + Number(entry.sleep ?? 0), 0) / points.length;
+
+  return `Wellness (letzte 14 Tage): HRV durchschnittlich ${Math.round(avgHrv)}ms, Schlaf durchschnittlich ${avgSleep.toFixed(1)}h. Letzte Messung: ${JSON.stringify(points[points.length - 1])}.`;
+}
+
+function summarizeEvents(events) {
+  if (!Array.isArray(events) || events.length === 0) {
+    return 'Keine kommenden Events oder Ziele bekannt.';
+  }
+
+  return `Aktuelle Events/Ziele: ${events
+    .map((event) => {
+      const name = event.name || event.title || 'Event';
+      const date = event.date || event.start_date || event.due_date || 'unbekannt';
+      return `${name} (${date})`;
+    })
+    .join(', ')}.`;
+}
+
+function buildContext(activities, wellness, events) {
+  return [
+    'Intervals.icu Daten:',
+    `- Zeitraum Aktivitäten: letzte 6 Monate`,
+    `- Zeitraum Wellness: letzte 12 Wochen`,
+    '',
+    summarizeActivities(activities),
+    summarizeWellness(wellness),
+    summarizeEvents(events),
+    '',
+    'Nutze diese Daten für die Planung und berücksichtige Gesamtbelastung über alle Sportarten. BJJ als hochintensiv, Kraft als neuromuskulär.',
+    ''
+  ].join('\n');
+}
+
 async function fetchIntervals(url, params = {}) {
   const response = await intervalsClient.get(url, { params });
   return response.data;
@@ -92,9 +170,22 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Prompt erforderlich' });
   }
 
-  const userContent = `Nutze die folgenden Intervals.icu-Daten und erstelle einen Wochenplan als Markdown-Tabelle.\n\n${prompt}`;
-
   try {
+    const [activities, wellness, events] = await Promise.all([
+      fetchIntervals(`/athlete/${ATHLETE_ID}/activities`, {
+        oldest: isoDateMonthsAgo(6),
+        newest: new Date().toISOString().slice(0, 10)
+      }),
+      fetchIntervals(`/athlete/${ATHLETE_ID}/wellness`, {
+        oldest: isoDateWeeksAgo(12),
+        newest: new Date().toISOString().slice(0, 10)
+      }),
+      fetchIntervals(`/athlete/${ATHLETE_ID}/events`)
+    ]);
+
+    const context = buildContext(activities, wellness, events);
+    const userContent = `${context}\n\n${prompt}`;
+
     const response = await anthropicClient.post('/chat/completions', {
       model: 'claude-sonnet-4',
       messages: [
