@@ -3,6 +3,19 @@ from intervals_mcp_server.config import get_config
 from intervals_mcp_server.mcp_instance import mcp
 
 
+def _summarize_wellness(entries: list[dict[str, str]]) -> str:
+    if not entries:
+        return "Keine Wellness-Daten vorhanden."
+
+    lines = []
+    for entry in entries[:10]:
+        date = entry.get("date") or entry.get("day") or "unbekannt"
+        hrv = entry.get("hrv") or entry.get("rmssd") or "-"
+        sleep = entry.get("sleep") or entry.get("sleepHours") or "-"
+        lines.append(f"- {date}: HRV {hrv}, Schlaf {sleep}")
+    return "\n".join(lines)
+
+
 @mcp.tool()
 async def get_wellness_data(
     athlete_id: str | None = None,
@@ -26,4 +39,5 @@ async def get_wellness_data(
     if not result:
         return "Keine Wellness-Daten gefunden."
 
-    return f"Wellness-Daten: {result}"
+    entries = result if isinstance(result, list) else [result]
+    return f"Wellness-Daten:\n{_summarize_wellness(entries)}"

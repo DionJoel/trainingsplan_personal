@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Chat from './components/Chat';
 import PlanPreview from './components/PlanPreview';
 import ObsidianExport from './components/ObsidianExport';
+import DataPreview from './components/DataPreview';
 
 function App() {
   const [planText, setPlanText] = useState('');
@@ -15,6 +16,8 @@ function App() {
       </header>
 
       <main>
+        <DataPreview setStatus={setStatus} />
+
         <Chat onPlanReady={(text) => {
           setPlanText(text);
           setStatus('Plan geladen.');

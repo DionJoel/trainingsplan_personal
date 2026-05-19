@@ -164,6 +164,25 @@ app.get('/api/goals', async (req, res) => {
   }
 });
 
+app.get('/api/context', async (req, res) => {
+  try {
+    const [activities, wellness, events] = await Promise.all([
+      fetchIntervals(`/athlete/${ATHLETE_ID}/activities`, {
+        oldest: isoDateMonthsAgo(6),
+        newest: new Date().toISOString().slice(0, 10)
+      }),
+      fetchIntervals(`/athlete/${ATHLETE_ID}/wellness`, {
+        oldest: isoDateWeeksAgo(12),
+        newest: new Date().toISOString().slice(0, 10)
+      }),
+      fetchIntervals(`/athlete/${ATHLETE_ID}/events`)
+    ]);
+    res.json({ activities, wellness, events });
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.message });
+  }
+});
+
 app.post('/api/chat', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) {
