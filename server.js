@@ -26,6 +26,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+let contextCache = null;
+let contextCacheTimestamp = 0;
+const CONTEXT_CACHE_TTL_MS = 1000 * 60 * 5; // 5 Minuten
+
 const intervalsClient = axios.create({
   baseURL: INTERVALS_BASE_URL,
   auth: {
@@ -166,6 +170,11 @@ app.get('/api/goals', async (req, res) => {
 
 app.get('/api/context', async (req, res) => {
   try {
+    const now = Date.now();
+    if (contextCache && now - contextCacheTimestamp < CONTEXT_CACHE_TTL_MS) {
+      return res.json(contextCache);
+    }
+
     const [activities, wellness, events] = await Promise.all([
       fetchIntervals(`/athlete/${ATHLETE_ID}/activities`, {
         oldest: isoDateMonthsAgo(6),
@@ -177,32 +186,41 @@ app.get('/api/context', async (req, res) => {
       }),
       fetchIntervals(`/athlete/${ATHLETE_ID}/events`)
     ]);
-    res.json({ activities, wellness, events });
+
+    contextCache = { activities, wellness, events };
+    contextCacheTimestamp = now;
+    res.json(contextCache);
   } catch (error) {
     res.status(error.response?.status || 500).json({ error: error.message });
   }
 });
 
 app.post('/api/chat', async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, clientContext } = req.body;
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt erforderlich' });
   }
 
   try {
-    const [activities, wellness, events] = await Promise.all([
-      fetchIntervals(`/athlete/${ATHLETE_ID}/activities`, {
-        oldest: isoDateMonthsAgo(6),
-        newest: new Date().toISOString().slice(0, 10)
-      }),
-      fetchIntervals(`/athlete/${ATHLETE_ID}/wellness`, {
-        oldest: isoDateWeeksAgo(12),
-        newest: new Date().toISOString().slice(0, 10)
-      }),
-      fetchIntervals(`/athlete/${ATHLETE_ID}/events`)
-    ]);
+    let context;
+    if (clientContext) {
+      // Client supplied a short context summary; use it directly
+      context = `ClientContext:\n${clientContext}`;
+    } else {
+      const [activities, wellness, events] = await Promise.all([
+        fetchIntervals(`/athlete/${ATHLETE_ID}/activities`, {
+          oldest: isoDateMonthsAgo(6),
+          newest: new Date().toISOString().slice(0, 10)
+        }),
+        fetchIntervals(`/athlete/${ATHLETE_ID}/wellness`, {
+          oldest: isoDateWeeksAgo(12),
+          newest: new Date().toISOString().slice(0, 10)
+        }),
+        fetchIntervals(`/athlete/${ATHLETE_ID}/events`)
+      ]);
+      context = buildContext(activities, wellness, events);
+    }
 
-    const context = buildContext(activities, wellness, events);
     const userContent = `${context}\n\n${prompt}`;
 
     const response = await anthropicClient.post('/chat/completions', {

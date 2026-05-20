@@ -1,10 +1,15 @@
-export async function sendChat(prompt) {
+export async function sendChat(prompt, clientContext) {
+  const body = { prompt };
+  if (clientContext) {
+    body.clientContext = clientContext;
+  }
+
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ prompt })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
