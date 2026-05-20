@@ -33,8 +33,8 @@ const CONTEXT_CACHE_TTL_MS = 1000 * 60 * 5; // 5 Minuten
 const intervalsClient = axios.create({
   baseURL: INTERVALS_BASE_URL,
   auth: {
-    username: INTERVALS_KEY || '',
-    password: ''
+    username: 'API_KEY',
+    password: INTERVALS_KEY || ''
   },
   headers: {
     Accept: 'application/json'
