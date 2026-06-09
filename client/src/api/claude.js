@@ -17,5 +17,9 @@ export async function sendChat(prompt, clientContext) {
     throw new Error(error.error || 'Chat-Request fehlgeschlagen');
   }
 
-  return response.json();
+  const result = await response.json();
+  if (result && typeof result.content === 'object') {
+    result.content = JSON.stringify(result.content, null, 2);
+  }
+  return result;
 }

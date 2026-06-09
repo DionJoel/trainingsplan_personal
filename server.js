@@ -10,6 +10,7 @@ dotenv.config();
 const {
   INTERVALS_KEY,
   ANTHROPIC_KEY,
+  ANTHROPIC_MODEL = 'claude-3.5',
   ATHLETE_ID,
   PORT = 3001,
   INTERVALS_BASE_URL = 'https://intervals.icu/api/v1',
@@ -44,10 +45,28 @@ const intervalsClient = axios.create({
 const anthropicClient = axios.create({
   baseURL: ANTHROPIC_BASE_URL,
   headers: {
-    Authorization: `Bearer ${ANTHROPIC_KEY || ''}`,
+    'x-api-key': ANTHROPIC_KEY || '',
+    'anthropic-version': '2023-06-01',
     'Content-Type': 'application/json'
   }
 });
+
+
+async function callAnthropicCompletion(userContent, modelName) {
+  const body = {
+    model: modelName,
+    system: systemPrompt,
+    messages: [
+      { role: 'user', content: userContent }
+    ],
+    temperature: 0.4,
+    max_tokens: 800
+  };
+
+  const response = await anthropicClient.post('/messages', body);
+  const completion = response.data?.content?.[0]?.text || '';
+  return { content: completion, model: modelName };
+}
 
 function isoDateWeeksAgo(weeks) {
   const date = new Date();
@@ -204,7 +223,6 @@ app.post('/api/chat', async (req, res) => {
   try {
     let context;
     if (clientContext) {
-      // Client supplied a short context summary; use it directly
       context = `ClientContext:\n${clientContext}`;
     } else {
       const [activities, wellness, events] = await Promise.all([
@@ -223,20 +241,14 @@ app.post('/api/chat', async (req, res) => {
 
     const userContent = `${context}\n\n${prompt}`;
 
-    const response = await anthropicClient.post('/chat/completions', {
-      model: 'claude-sonnet-4',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent }
-      ],
-      temperature: 0.4,
-      max_tokens_to_sample: 800
-    });
-
-    const completion = response.data?.choices?.[0]?.message?.content || response.data?.completion || '';
+    const completionResponse = await callAnthropicCompletion(userContent, ANTHROPIC_MODEL);
+    const completion = completionResponse.content;
     res.json({ content: completion });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.response?.data || error.message });
+    console.error('Chat endpoint error:', error);
+    const status = error?.response?.status || 500;
+    const errorBody = error?.response?.data || (error instanceof Error ? { error: error.message } : { error });
+    res.status(status).json(errorBody);
   }
 });
 
@@ -265,4 +277,5 @@ app.put('/api/goals/:id', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
+  console.log(`Anthropic Modell: ${ANTHROPIC_MODEL}`);
 });
